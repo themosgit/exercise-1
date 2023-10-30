@@ -1,13 +1,21 @@
 #ifndef HP_FILE_H
 #define HP_FILE_H
 #include <record.h>
+#include <bf.h>
 
 
 
 /* Η δομή HP_info κρατάει μεταδεδομένα που σχετίζονται με το αρχείο σωρού*/
 typedef struct {
-    
+    int max_records;
+    BF_Block *last_blockId;
 } HP_info;
+
+typedef struct {
+    int records;
+    BF_Block *next_blockId;
+} HP_block_info;
+
 
 /*Η συνάρτηση HP_CreateFile χρησιμοποιείται για τη δημιουργία και
 κατάλληλη αρχικοποίηση ενός άδειου αρχείου σωρού με όνομα fileName.
