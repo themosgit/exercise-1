@@ -22,7 +22,7 @@ int main() {
 
   HP_CreateFile(FILE_NAME);
   int file_desc;
-
+/*
   HP_info* hp_info2=HP_OpenFile(FILE_NAME, &file_desc);
   
   Record record;
@@ -40,5 +40,5 @@ int main() {
   HP_GetAllEntries(file_desc,hp_info2, id);
 
   HP_CloseFile(file_desc,hp_info2);
-  BF_Close();
+  BF_Close();*/
 }

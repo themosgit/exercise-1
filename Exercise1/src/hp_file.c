@@ -22,6 +22,7 @@
       exit(code);             \
     }                         \
   }
+
 int HP_CreateFile(char *fileName){
     // int fd;
     // void* data;
@@ -50,9 +51,8 @@ int HP_CreateFile(char *fileName){
     void* data;
     BF_Block *block;
     BF_Block_Init(&block);
-    printf("test\n");
-    CALL_OR_DIE(BF_Init(LRU));
-    CALL_OR_DIE(BF_CreateFile(fileName))
+    
+    CALL_OR_DIE(BF_CreateFile(fileName));
     CALL_OR_DIE(BF_OpenFile(fileName, &fd));
     CALL_OR_DIE(BF_AllocateBlock(fd, block));
     data = BF_Block_GetData(block);
@@ -68,6 +68,7 @@ int HP_CreateFile(char *fileName){
     CALL_OR_DIE(BF_UnpinBlock(block));
     CALL_OR_DIE(BF_CloseFile(fd));
     CALL_OR_DIE(BF_Close());
+    printf("test\n");
     return 0;
 }
 
