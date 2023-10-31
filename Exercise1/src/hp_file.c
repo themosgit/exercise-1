@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "bf.h"
 #include "hp_file.h"
-#include "record.h"
+#include "record.h" 
 
 #define CALL_BF(call)       \
 {                           \
@@ -51,7 +52,6 @@ int HP_CreateFile(char *fileName){
     void* data;
     BF_Block *block;
     BF_Block_Init(&block);
-    
     CALL_OR_DIE(BF_CreateFile(fileName));
     CALL_OR_DIE(BF_OpenFile(fileName, &fd));
     CALL_OR_DIE(BF_AllocateBlock(fd, block));
@@ -59,8 +59,8 @@ int HP_CreateFile(char *fileName){
     HP_info *PtrHP_info;
     HP_block_info *PtrHP_block_info;
     PtrHP_info = data;
-    PtrHP_block_info = data + 504/sizeof(int);
-    PtrHP_info ->max_records = 2;
+    PtrHP_block_info = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
+    PtrHP_info->max_records = floor((BF_BLOCK_SIZE-sizeof(HP_block_info)-sizeof(HP_info))/sizeof(Record));
     PtrHP_info->last_blockId = block;
     PtrHP_block_info->records = 0;
     PtrHP_block_info->next_blockId = NULL;
