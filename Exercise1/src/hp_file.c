@@ -81,7 +81,33 @@ HP_info* HP_OpenFile(char *fileName, int *file_desc){
 int HP_CloseFile(int file_desc,HP_info* hp_info ){
 }
 
-int HP_InsertEntry(int file_desc,HP_info* hp_info, Record record){
+int HP_InsertEntry(int file_desc, HP_info *hp_info, Record record) {
+    BF_Block *block=hp_info->last_blockId;
+    void* data=BF_Block_GetData(block);
+    HP_block_info *blockInfo=data+BF_BLOCK_SIZE-sizeof(HP_block_info);
+    //printf("kati:%p\n",hp_info->max_records);
+
+    if(blockInfo->records<hp_info->max_records){
+        Record *rec=data;
+        rec[blockInfo->records]=record;
+        blockInfo->records++;
+        BF_Block_SetDirty(block);
+        CALL_OR_DIE(BF_UnpinBlock(block));
+    }else{
+        BF_Block *block2;
+        CALL_OR_DIE(BF_AllocateBlock(file_desc, block2));
+        void* data2 = BF_Block_GetData(block2);
+        blockInfo->next_blockId=data2;
+        HP_block_info *blockInfo2=data2+BF_BLOCK_SIZE-sizeof(HP_block_info);
+        blockInfo2->records=1;
+        Record *rec=data2;
+        rec[0]=record;
+        BF_Block_SetDirty(block);
+        BF_Block_SetDirty(block2);
+        CALL_OR_DIE(BF_UnpinBlock(block));
+        CALL_OR_DIE(BF_UnpinBlock(block2));
+    }
+
     return -1;
 }
 
