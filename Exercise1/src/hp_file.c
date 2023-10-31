@@ -14,7 +14,14 @@
     return HP_ERROR;        \
   }                         \
 }
-
+#define CALL_OR_DIE(call)     \
+  {                           \
+    BF_ErrorCode code = call; \
+    if (code != BF_OK) {      \
+      BF_PrintError(code);    \
+      exit(code);             \
+    }                         \
+  }
 int HP_CreateFile(char *fileName){
     // int fd;
     // void* data;
