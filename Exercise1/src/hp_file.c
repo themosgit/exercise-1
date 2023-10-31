@@ -16,21 +16,45 @@
 }
 
 int HP_CreateFile(char *fileName){
+    // int fd;
+    // void* data;
+    // BF_Block *block;
+    // BF_Block_Init(&block);
+    // CALL_OR_DIE(BF_Init(LRU));
+    // CALL_OR_DIE(BF_CreateFile(*fileName,".db"))
+    // CALL_OR_DIE(BF_OpenFile(*fileName,".db", &fd));
+    // CALL_OR_DIE(BF_AllocateBlock(fd, block));
+    // data = BF_Block_GetData(block);
+    // struct HP_Info *PtrHP_info;
+    // struct HP_block_info *PtrHP_block_info;
+    // *PtrHP_info = data;
+    // *PtrHP_block_info = data + 504/sizeof(int);
+    // PtrHP_info->max_records = 2;
+    // PtrHP_info->last_blockId = &block;
+    // PtrHP_block_info->records = 0;
+    // PtrHP_block_info->next_blockId = NULL;
+    // BF_Block_SetDirty(block);
+    // CALL_OR_DIE(BF_UnpinBlock(block));
+    // CALL_OR_DIE(BF_CloseFile(fd));
+    // CALL_OR_DIE(BF_Close());
+    // return 0;
+
     int fd;
     void* data;
     BF_Block *block;
     BF_Block_Init(&block);
+    printf("test\n");
     CALL_OR_DIE(BF_Init(LRU));
-    CALL_OR_DIE(BF_CreateFile(*fileName,".db"))
-    CALL_OR_DIE(BF_OpenFile(*fileName,".db", &fd));
+    CALL_OR_DIE(BF_CreateFile(fileName))
+    CALL_OR_DIE(BF_OpenFile(fileName, &fd));
     CALL_OR_DIE(BF_AllocateBlock(fd, block));
     data = BF_Block_GetData(block);
-    struct HP_Info *PtrHP_info;
-    struct HP_block_info *PtrHP_block_info;
-    *PtrHP_info = data;
-    *PtrHP_block_info = data + 504/sizeof(int);
-    PtrHP_info->max_records = 2;
-    PtrHP_info->last_blockId = &block;
+    HP_info *PtrHP_info;
+    HP_block_info *PtrHP_block_info;
+    PtrHP_info = data;
+    PtrHP_block_info = data + 504/sizeof(int);
+    PtrHP_info ->max_records = 2;
+    PtrHP_info->last_blockId = block;
     PtrHP_block_info->records = 0;
     PtrHP_block_info->next_blockId = NULL;
     BF_Block_SetDirty(block);
