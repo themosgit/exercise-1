@@ -77,4 +77,5 @@ int HP_GetAllEntries(
     int id                /* η τιμή id της εγγραφής στην οποία πραγματοποιείται η αναζήτηση*/);
 
 
+void recordBeautifier(Record *rec);
 #endif // HP_FILE_H
