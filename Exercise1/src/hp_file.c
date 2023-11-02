@@ -85,10 +85,10 @@ int HP_InsertEntry(int file_desc,HP_info* hp_info, Record record){
 
     if (lastblockid == 0 || blinfo->records == hp_info->max_records) {
         addBlock(block, hp_info, file_desc);
+        data = BF_Block_GetData(block);
+        blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
     }
 
-    data = BF_Block_GetData(block);
-    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
 
     Record *rec = data;
     memcpy(&rec[blinfo->records], &record, sizeof(record));
