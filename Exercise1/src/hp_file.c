@@ -73,64 +73,28 @@ int HP_CloseFile(int file_desc,HP_info* hp_info ){
 
 int HP_InsertEntry(int file_desc,HP_info* hp_info, Record record){
     BF_Block *block;
-    BF_Block *blockt;
-    BF_Block_Init(&block);
-    
-    
-    void *data;
-    int blocks_num;
-    BF_GetBlockCounter(file_desc, &blocks_num);
-    int lastblockid = (int) hp_info->last_blockId;
     HP_block_info *blinfo;
+    BF_Block_Init(&block);
+    void *data;
+
+    int lastblockid = (int) hp_info->last_blockId;
     BF_GetBlock(file_desc, lastblockid, block);
 
-    if (lastblockid == 0) {
-       BF_Block_Init(&blockt);
-       memcpy(blockt, block, sizeof(block));
-       
-        hp_info->last_blockId = (BF_Block *) 1;
-       
-        data = BF_Block_GetData(block);
-        blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-        CALL_OR_DIE(BF_AllocateBlock(file_desc, block));
-        blinfo->next_blockId = block;
-        data = BF_Block_GetData(block);
-        blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-        blinfo->records = 0;
-        blinfo->next_blockId = NULL;
-        BF_Block_SetDirty(blockt);
-        CALL_OR_DIE(BF_UnpinBlock(blockt));
-        lastblockid = 1;
-    }
     data = BF_Block_GetData(block);
     blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-    
-    if (blinfo->records == hp_info->max_records) {
-        //dhmiourgia neou block
-        BF_Block_Init(&blockt);
-        hp_info->last_blockId = (BF_Block *) ((int) (hp_info->last_blockId) + 1);
-        memcpy(blockt, block, sizeof(block));
-        CALL_OR_DIE(BF_AllocateBlock(file_desc, block));
-        blinfo->next_blockId = block;     
-        BF_Block_SetDirty(blockt);
-        CALL_OR_DIE(BF_UnpinBlock(blockt));
-        data = BF_Block_GetData(block);
-        blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-        Record *rec = data;
-        memcpy(&rec[0], &record, sizeof(record));
-        blinfo->records = 1;
-        blinfo->next_blockId = NULL;
-        BF_Block_SetDirty(block);
-        BF_UnpinBlock(block);
-    } else {
-        //eisagwgh eggrafhs sto yparxon block
-        Record *rec = data;
-        memcpy(&rec[blinfo->records], &record, sizeof(record));
-        blinfo->records++;
-        BF_Block_SetDirty(block);
-        BF_UnpinBlock(block);
+
+    if (lastblockid == 0 || blinfo->records == hp_info->max_records) {
+        addBlock(block, hp_info, file_desc);
     }
 
+    data = BF_Block_GetData(block);
+    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
+
+    Record *rec = data;
+    memcpy(&rec[blinfo->records], &record, sizeof(record));
+    blinfo->records++;
+    BF_Block_SetDirty(block);
+    BF_UnpinBlock(block);
     return -1;
 }
 
@@ -147,18 +111,16 @@ int HP_GetAllEntries(int file_desc,HP_info* hp_info, int value){
         data = BF_Block_GetData(block);
         blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
         Record *rec = data;
-        //printf("block %d\n",i);
         for (int j = 0; j < blinfo->records; j++) {
-            //printf("den vrethike:");
-            //printRecord(rec[j]);
             if (rec[j].id == value) {
                 printf("Found: ");
                 printRecord(rec[j]);
             
             }
-            CALL_OR_DIE(BF_UnpinBlock(block));
+           
         }
-}
+         CALL_OR_DIE(BF_UnpinBlock(block));
+    }
  return -1;
 }
 
@@ -193,4 +155,25 @@ void recordBeautifier(Record *rec) {
         }
     }
 
+}
+
+
+void addBlock(BF_Block *block, HP_info* hp_info, int fd) {
+    BF_Block *blockt;
+    HP_block_info *blinfo;
+    void *data;
+    BF_Block_Init(&blockt);
+    hp_info->last_blockId = (BF_Block *) ((int) (hp_info->last_blockId) + 1);
+    memcpy(blockt, block, sizeof(block));
+    data = BF_Block_GetData(block);
+    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
+    CALL_OR_DIE(BF_AllocateBlock(fd, block));
+    blinfo->next_blockId = block;
+    data = BF_Block_GetData(block);
+    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
+    blinfo->records = 0;
+    blinfo->next_blockId = NULL;
+    BF_Block_SetDirty(blockt);
+    CALL_OR_DIE(BF_UnpinBlock(blockt));
+    return;
 }

@@ -78,4 +78,7 @@ int HP_GetAllEntries(
 
 
 void recordBeautifier(Record *rec);
+
+void addBlock(BF_Block *block, HP_info* hp_info, int fd);
+
 #endif // HP_FILE_H
