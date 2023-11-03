@@ -2,79 +2,79 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../include/bf.h"
-#include "../include/hp_file.h"
-#include "../include/record.h"
+#include "bf.h"
+#include "hp_file.h"
+#include "record.h"
 
 #define CALL_BF(call)       \
 {                           \
   BF_ErrorCode code = call; \
   if (code != BF_OK) {         \
     BF_PrintError(code);    \
-    return HP_ERROR;        \
+    return BF_ERROR;        \
   }                         \
 }
-#define CALL_OR_DIE(call)     \
-  {                           \
-    BF_ErrorCode code = call; \
-    if (code != BF_OK) {      \
-      BF_PrintError(code);    \
-      exit(code);             \
-    }                         \
-  }
+#define CHECK_AND_RETURN(call)\
+{                             \
+  BF_ErrorCode code = call;   \
+  if (code != BF_OK) {        \
+    BF_PrintError(code);      \
+    return -1;                \
+  }                           \
+}
+
+/*H CHECK_AND_RETURN dhmiourgh8hke gia na kanei auto pou zhtaei h askhsh, htoi an apotyxei to call
+ * na epistrefei -1, anti gia HP_ERROR pou epistrfei h CALL_BF. Opote oles oi synarthseis BF pou epistrefoun
+ * error code, kalountai me CHECK_AND_RETURN anti gia CALL_BF.
+ * */
+
 
 int HP_CreateFile(char *fileName) {
     int fd;
     void *data;
     BF_Block *block;
     BF_Block_Init(&block);
-    BF_CreateFile(fileName);
-    BF_OpenFile(fileName, &fd);
-    BF_AllocateBlock(fd, block);
-
+    CHECK_AND_RETURN(BF_CreateFile(fileName));
+    CHECK_AND_RETURN(BF_OpenFile(fileName, &fd));
+    CHECK_AND_RETURN(BF_AllocateBlock(fd, block));
+    //dhmiourgei ena block to opoio periexei ena HP_info sthn arxh kai tpt allo
     data = BF_Block_GetData(block);
-    HP_info *PtrHP_info;
-//    HP_block_info *PtrHP_block_info;
-    PtrHP_info = data;
-//    PtrHP_block_info = data + BF_BLOCK_SIZE - sizeof(HP_info);
+    HP_info *PtrHP_info = data;
     PtrHP_info->max_records = (BF_BLOCK_SIZE - sizeof(HP_block_info)) / sizeof(Record);
-    PtrHP_info->last_blockId = (BF_Block *) 0;
-//    PtrHP_block_info->records = 0;
-//    PtrHP_block_info->next_blockId = NULL;
+    PtrHP_info->last_blockId = 0;
     BF_Block_SetDirty(block);
-    CALL_OR_DIE(BF_UnpinBlock(block));
-    CALL_OR_DIE(BF_CloseFile(fd));
-    //CALL_OR_DIE(BF_Close());
+    CHECK_AND_RETURN(BF_UnpinBlock(block));
+    CHECK_AND_RETURN(BF_CloseFile(fd));
+    BF_Block_Destroy(&block);
+    //an ta CHECK_AND_RETURN apotyxoun
+    //epistrefetai -1
+    //diaforetika 0
     return 0;
 }
 
 HP_info *HP_OpenFile(char *fileName, int *file_desc) {
-    //BF_OpenFile(fileName,file_desc);
-
     BF_Block *block;
     BF_Block_Init(&block);
-
-    CALL_OR_DIE(BF_OpenFile(fileName, file_desc));
-
-    CALL_OR_DIE(BF_GetBlock(*file_desc, 0, block));
-
-    return (HP_info *) BF_Block_GetData(block);
+    BF_OpenFile(fileName, file_desc);
+    BF_GetBlock(*file_desc, 0, block);
+    HP_info *hpinfo = (HP_info *) BF_Block_GetData(block);
+    BF_UnpinBlock(block);
+    BF_Block_Destroy(&block);
+    return hpinfo;
 }
 
 
 int HP_CloseFile(int file_desc, HP_info *hp_info) {
-    BF_ErrorCode a = BF_CloseFile(file_desc);
-//    if(BF_CloseFile(file_desc)==BF_OK){
-//        return 0;
-//    }
-    return -1;
+    CHECK_AND_RETURN(BF_CloseFile(file_desc));
+    //epistrefei -1 an kati den paei kala mesw tou CHECK_AND_RETURN
+    //diaforetika 0
+    return 0;
 }
 
 void recordBeautifier(Record *rec) {
-    int change = 0;
+    int change;
     for (int i = 6; i < sizeof(rec->record); i++) {
         rec->record[i] = 0;
-
     }
     change = 0;
     for (int i = 0; i < sizeof(rec->name); i++) {
@@ -104,70 +104,84 @@ void recordBeautifier(Record *rec) {
 }
 
 int HP_InsertEntry(int file_desc, HP_info *hp_info, Record record) {
+    recordBeautifier(&record);
+    void *data;
     BF_Block *block;
     BF_Block_Init(&block);
-    void *data;
-    int blocks_num;
-    BF_GetBlockCounter(file_desc, &blocks_num);
-    int lastblockid = (int) hp_info->last_blockId;
+
+    BF_GetBlock(file_desc,0,block);
+    HP_info *zerodata = (HP_info *) BF_Block_GetData(block);
+    BF_Block_SetDirty(block);
+    BF_UnpinBlock(block);
+
+    if (zerodata->last_blockId == 0) {
+        zerodata->last_blockId =  1;
+        BF_Block_SetDirty(block);
+        BF_AllocateBlock(file_desc, block);
+    }
+
+    int lastblockid = zerodata->last_blockId;
     HP_block_info *blinfo;
 
-    if (lastblockid == 0) {
-        hp_info->last_blockId = (BF_Block *) 1;
-        BF_AllocateBlock(file_desc, block);
-        lastblockid = 1;
-    }
-    BF_GetBlock(file_desc, lastblockid, block);
+    BF_GetBlock(file_desc, zerodata->last_blockId, block);
     data = BF_Block_GetData(block);
     blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-    if (blinfo->records == hp_info->max_records) {
+    if (blinfo->records == zerodata->max_records) {
         //dhmiourgia neou block
-        BF_UnpinBlock(block);
-        hp_info->last_blockId = (BF_Block *) ((int) (hp_info->last_blockId) + 1);
-        BF_ErrorCode asdf = BF_AllocateBlock(file_desc, block);
+        CHECK_AND_RETURN(BF_UnpinBlock(block));
+        zerodata->last_blockId = zerodata->last_blockId + 1;
+        lastblockid=zerodata->last_blockId;
+        CHECK_AND_RETURN(BF_AllocateBlock(file_desc, block));
         data = BF_Block_GetData(block);
         blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
         Record *rec = data;
         memcpy(&rec[0], &record, sizeof(record));
         blinfo->records = 1;
         BF_Block_SetDirty(block);
-        BF_ErrorCode as = BF_UnpinBlock(block);
+        CHECK_AND_RETURN(BF_UnpinBlock(block));
+
+//        BF_GetBlock(file_desc, 0, block);
+//        data=BF_Block_GetData(block);
+//        memcpy(data,zerodata,sizeof(HP_info));
+//        BF_Block_SetDirty(block);
+//        CHECK_AND_RETURN(BF_UnpinBlock(block));
     } else {
         //eisagwgh eggrafhs sto yparxon block
         Record *rec = data;
         memcpy(&rec[blinfo->records], &record, sizeof(record));
         blinfo->records++;
         BF_Block_SetDirty(block);
-        BF_ErrorCode as = BF_UnpinBlock(block);
+        CHECK_AND_RETURN(BF_UnpinBlock(block));
     }
+    //an yparxei kapoio provlhma epistrefetai -1 mesw twn CHECK_AND_RETURN
+    //diaforetika epistrefetai to id tou block sto opoio egine h eggrafh tou record
+    BF_Block_Destroy(&block);
 
-    return -1;
+    return lastblockid;
 }
-
 
 int HP_GetAllEntries(int file_desc, HP_info *hp_info, int value) {
     BF_Block *block;
     BF_Block_Init(&block);
     void *data;
     int blocks_num;
-    BF_GetBlockCounter(file_desc, &blocks_num);
-
+    CHECK_AND_RETURN(BF_GetBlockCounter(file_desc, &blocks_num));
+    HP_block_info *blinfo;
     for (int i = 1; i < blocks_num; i++) {
-        BF_GetBlock(file_desc, i, block);
+        CHECK_AND_RETURN(BF_GetBlock(file_desc, i, block));
         data = BF_Block_GetData(block);
         Record *rec = data;
-        //printf("block %d\n",i);
-        for (int j = 0; j < hp_info->max_records; j++) {
-            //printf("den vrethike:");
-            //printRecord(rec[j]);
+        blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
+        for (int j = 0; j < blinfo->records; j++) {
             if (rec[j].id == value) {
-                printf("vrethike:\n");
                 printRecord(rec[j]);
             }
         }
-
+        CHECK_AND_RETURN(BF_UnpinBlock(block));
     }
-
-    return -1;
+    BF_Block_Destroy(&block);
+    return blocks_num;
 }
+
+
 
