@@ -12,7 +12,7 @@
   BF_ErrorCode code = call; \
   if (code != BF_OK) {         \
     BF_PrintError(code);    \
-    return HP_ERROR;        \
+    return BF_ERROR;        \
   }                         \
 }
 #define CALL_OR_DIE(call)     \
@@ -23,6 +23,8 @@
       exit(code);             \
     }                         \
   }
+
+
 
 int HP_CreateFile(char *fileName){
     int fd;
@@ -38,14 +40,15 @@ int HP_CreateFile(char *fileName){
     PtrHP_block_info = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
     PtrHP_info = data;
     PtrHP_info->max_records = floor((BF_BLOCK_SIZE-sizeof(HP_block_info))/sizeof(Record));
-    PtrHP_info->last_blockId = (BF_Block *) 0;
+    PtrHP_info->last_blockId = 0;
     PtrHP_block_info->records = 0;
-    PtrHP_block_info->next_blockId = NULL;
     BF_Block_SetDirty(block);
     CALL_OR_DIE(BF_UnpinBlock(block));
     CALL_OR_DIE(BF_CloseFile(fd));
     return 0;
 }
+
+
 
 HP_info* HP_OpenFile(char *fileName, int *file_desc){
 
@@ -56,11 +59,14 @@ HP_info* HP_OpenFile(char *fileName, int *file_desc){
 
     CALL_OR_DIE(BF_GetBlock(*file_desc, 0, block));
 
-    HP_info* info = BF_Block_GetData(block);
+    void *data = BF_Block_GetData(block);
+    HP_info *info = data;
 
     BF_UnpinBlock(block);
+
     return info;
 }
+
 
 
 int HP_CloseFile(int file_desc,HP_info* hp_info ){
@@ -71,24 +77,32 @@ int HP_CloseFile(int file_desc,HP_info* hp_info ){
     return -1;
 }
 
+
+
 int HP_InsertEntry(int file_desc,HP_info* hp_info, Record record){
+    void *data;
     BF_Block *block;
     HP_block_info *blinfo;
     BF_Block_Init(&block);
-    void *data;
 
-    int lastblockid = (int) hp_info->last_blockId;
-    BF_GetBlock(file_desc, lastblockid, block);
+    int lastblockid = hp_info->last_blockId;
 
+    CALL_OR_DIE(BF_GetBlock(file_desc, lastblockid, block));
     data = BF_Block_GetData(block);
-    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-
+    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info); 
+     
     if (lastblockid == 0 || blinfo->records == hp_info->max_records) {
-        addBlock(block, hp_info, file_desc);
+
+        blinfo->next_blockId = lastblockid + 1;
+        BF_Block_SetDirty(block);
+        (lastblockid == 0) ? : (BF_UnpinBlock(block));
+
+        CALL_OR_DIE(BF_AllocateBlock(file_desc, block));
+        hp_info->last_blockId = hp_info->last_blockId + 1;
         data = BF_Block_GetData(block);
         blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
+        blinfo->records = 0;
     }
-
 
     Record *rec = data;
     memcpy(&rec[blinfo->records], &record, sizeof(record));
@@ -98,13 +112,15 @@ int HP_InsertEntry(int file_desc,HP_info* hp_info, Record record){
     return -1;
 }
 
+
+
+
 int HP_GetAllEntries(int file_desc,HP_info* hp_info, int value){    
     BF_Block *block;
     BF_Block_Init(&block);
     HP_block_info *blinfo;
     void *data;
-    int blocks_num;
-    BF_GetBlockCounter(file_desc, &blocks_num);
+    int blocks_num = hp_info->last_blockId;
 
     for (int i = 1; i < blocks_num; i++) {
         BF_GetBlock(file_desc, i, block);
@@ -123,6 +139,9 @@ int HP_GetAllEntries(int file_desc,HP_info* hp_info, int value){
     }
  return -1;
 }
+
+
+
 
 void recordBeautifier(Record *rec) {
     int change = 0;
@@ -157,23 +176,3 @@ void recordBeautifier(Record *rec) {
 
 }
 
-
-void addBlock(BF_Block *block, HP_info* hp_info, int fd) {
-    BF_Block *blockt;
-    HP_block_info *blinfo;
-    void *data;
-    BF_Block_Init(&blockt);
-    hp_info->last_blockId = (BF_Block *) ((int) (hp_info->last_blockId) + 1);
-    memcpy(blockt, block, sizeof(block));
-    data = BF_Block_GetData(block);
-    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-    CALL_OR_DIE(BF_AllocateBlock(fd, block));
-    blinfo->next_blockId = block;
-    data = BF_Block_GetData(block);
-    blinfo = data + BF_BLOCK_SIZE - sizeof(HP_block_info);
-    blinfo->records = 0;
-    blinfo->next_blockId = NULL;
-    BF_Block_SetDirty(blockt);
-    CALL_OR_DIE(BF_UnpinBlock(blockt));
-    return;
-}
