@@ -8,12 +8,12 @@
 /* Η δομή HP_info κρατάει μεταδεδομένα που σχετίζονται με το αρχείο σωρού*/
 typedef struct {
     int max_records;
-    BF_Block *last_blockId;
+    int last_blockId;
 } HP_info;
 
 typedef struct {
     int records;
-    BF_Block *next_blockId;
+    int next_blockId;
 } HP_block_info;
 
 
@@ -79,6 +79,6 @@ int HP_GetAllEntries(
 
 void recordBeautifier(Record *rec);
 
-void addBlock(BF_Block *block, HP_info* hp_info, int fd);
+void addBlock(HP_info* hp_info, int fd, BF_Block *block);
 
 #endif // HP_FILE_H
