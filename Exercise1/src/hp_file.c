@@ -140,11 +140,7 @@ int HP_InsertEntry(int file_desc, HP_info *hp_info, Record record) {
         BF_Block_SetDirty(block);
         CHECK_AND_RETURN(BF_UnpinBlock(block));
 
-//        BF_GetBlock(file_desc, 0, block);
-//        data=BF_Block_GetData(block);
-//        memcpy(data,zerodata,sizeof(HP_info));
-//        BF_Block_SetDirty(block);
-//        CHECK_AND_RETURN(BF_UnpinBlock(block));
+
     } else {
         //eisagwgh eggrafhs sto yparxon block
         Record *rec = data;
